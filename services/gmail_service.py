@@ -1,5 +1,7 @@
 import os
 import base64
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -54,12 +56,12 @@ class GmailService:
     def fetch_emails(self, start_time=None, end_time=None, max_results=1000):
         """
         Fetch emails from Gmail API within a specified time range.
+        Optimized with threading for parallel processing.
 
         Args:
-            service: Gmail service object
-            start_time (int, optional): Start time in epoch milliseconds
-            end_time (int, optional): End time in epoch milliseconds  
-            max_results (int): Maximum number of emails to fetch (default: 300)
+            start_time (int, optional): Start time in epoch seconds
+            end_time (int, optional): End time in epoch seconds  
+            max_results (int): Maximum number of emails to fetch (default: 1000)
 
         Returns:
             list: List of email dictionaries
@@ -72,50 +74,147 @@ class GmailService:
             if end_time:
                 query_parts.append(f"before:{end_time}")
             query = " ".join(query_parts) if query_parts else None
-            # Prepare request parameters
+            
+            # Prepare request parameters with optimizations
             request_params = {
                 "userId": "me",
-                "maxResults": max_results
+                "maxResults": min(max_results, 500),  # Gmail API limit
+                "includeSpamTrash": False  # Exclude spam/trash for better performance
             }
             if query:
                 request_params["q"] = query
+                
+            # Get message list
             results = self.service.users().messages().list(**request_params).execute()
             messages = results.get("messages", [])
-            emails = []
-
-            for msg in messages:
-                msg_data = self.service.users().messages().get(userId="me", id=msg["id"]).execute()
-                payload = msg_data.get("payload", {}).get("headers", [])
-                sender = next((h["value"] for h in payload if h["name"] == "From"), "")
-                subject = next((h["value"] for h in payload if h["name"] == "Subject"), "")
-                snippet = msg_data.get("snippet", "")
-                internal_date = msg_data.get("internalDate", "")
-                labels = msg_data.get("labelIds", [])
-                labels = "|".join(labels)
-                # Convert epoch milliseconds to readable format
-                received_date = ""
-                if internal_date:
-                    try:
-                        from datetime import datetime
-                        # Convert from milliseconds to seconds
-                        timestamp = int(internal_date) // 1000
-                        received_date = datetime.fromtimestamp(timestamp).isoformat()
-                    except (ValueError, OSError):
-                        received_date = internal_date
-                
-                emails.append({
-                    "id": msg["id"],
-                    "sender": sender,
-                    "subject": subject,
-                    "snippet": snippet,
-                    "received": received_date,
-                    "internal_date": internal_date,
-                    "labels": labels
-                })
+            
+            if not messages:
+                return []
+            
+            # Fetch email details in parallel using threading
+            emails = self._fetch_emails_parallel(messages)
+            print(f"📥 Fetched {len(emails)} emails using parallel processing")
+            
             return emails
             
         except Exception as e:
             raise CustomException(f"Error fetching emails: {e}")
+
+    def _fetch_emails_parallel(self, messages):
+        """
+        Fetch email details in parallel using threading for better performance.
+        Uses thread-safe approach with individual service instances.
+        """
+        emails = []
+        
+        # Use ThreadPoolExecutor for parallel processing with reduced workers
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            # Submit all tasks
+            future_to_msg = {
+                executor.submit(self._fetch_single_email_safe, msg["id"]): msg 
+                for msg in messages
+            }
+            
+            # Collect results as they complete
+            for future in as_completed(future_to_msg):
+                try:
+                    email_data = future.result()
+                    if email_data:
+                        emails.append(email_data)
+                except Exception as e:
+                    msg = future_to_msg[future]
+                    print(f"Error fetching email {msg['id']}: {e}")
+                    continue
+        
+        return emails
+
+    def _fetch_single_email_safe(self, msg_id):
+        """
+        Thread-safe method to fetch a single email.
+        Creates a new service instance for each thread.
+        """
+        try:
+            # Create a new service instance for thread safety
+            service = self._create_new_service()
+            
+            # Use optimized parameters to fetch only essential data
+            msg_data = service.users().messages().get(
+                userId="me", 
+                id=msg_id,
+                format="metadata",
+                metadataHeaders=["From", "Subject"]
+            ).execute()
+            
+            return self._process_email_data(msg_data)
+        except Exception as e:
+            print(f"Error fetching email {msg_id}: {e}")
+            return None
+
+    def _create_new_service(self):
+        """
+        Create a new Gmail service instance for thread safety.
+        """
+        try:
+            creds = None
+            if os.path.exists("token.json"):
+                creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+            
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+                    flow.redirect_uri = 'http://localhost:5001/'
+                    creds = flow.run_local_server(port=5001, access_type='offline', prompt='consent')
+                with open("token.json", "w") as token:
+                    token.write(creds.to_json())
+            
+            return build("gmail", "v1", credentials=creds)
+        except Exception as e:
+            print(f"Error creating new service: {e}")
+            return None
+
+    def _process_email_data(self, msg_data):
+        """
+        Process email data into standardized format.
+        """
+        try:
+            payload = msg_data.get("payload", {})
+            headers = payload.get("headers", [])
+            
+            # Extract headers efficiently
+            header_dict = {h["name"]: h["value"] for h in headers}
+            sender = header_dict.get("From", "")
+            subject = header_dict.get("Subject", "")
+            
+            snippet = msg_data.get("snippet", "")
+            internal_date = msg_data.get("internalDate", "")
+            labels = msg_data.get("labelIds", [])
+            labels_str = "|".join(labels)
+            
+            # Convert epoch milliseconds to readable format
+            received_date = ""
+            if internal_date:
+                try:
+                    from datetime import datetime
+                    # Convert from milliseconds to seconds
+                    timestamp = int(internal_date) // 1000
+                    received_date = datetime.fromtimestamp(timestamp).isoformat()
+                except (ValueError, OSError):
+                    received_date = internal_date
+            
+            return {
+                "id": msg_data["id"],
+                "sender": sender,
+                "subject": subject,
+                "snippet": snippet,
+                "received": received_date,
+                "internal_date": internal_date,
+                "labels": labels_str
+            }
+        except Exception as e:
+            print(f"Error processing email data: {e}")
+            return None
 
     def mark_as_read(self, msg_id):
         try:

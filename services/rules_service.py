@@ -61,8 +61,6 @@ def validate_rule_group(rule_group, index):
         list: List of validation errors
     """
     errors = []
-    print("Validating rule group: ", rule_group)
-    
     # Check required fields
     required_fields = ["predicate", "conditions", "actions"]
     for field in required_fields:

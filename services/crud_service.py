@@ -7,19 +7,24 @@ class CrudService:
         self.conn = conn
 
     def get_emails_and_store_in_db(self, date_range=3):
+        """
+        Fetch emails from Gmail and store in database with optimizations.
+        Uses parallel processing and batch database operations.
+        """
         # Calculate start and end times correctly
         end_time = datetime.now()
         start_time = end_time - timedelta(days=date_range)
         # Convert to epoch seconds (Gmail API expects seconds, not milliseconds)
         start_epoch = int(start_time.timestamp())
         end_epoch = int(end_time.timestamp())
-        
-        # Fetch emails with optimized Gmail API calls
+        # Fetch emails with parallel processing
         emails = self.gmail_service.fetch_emails(start_time=start_epoch, end_time=end_epoch)
         
         # Batch insert emails for better performance
         if emails:
             self.conn.batch_insert_emails(emails)
+        else:
+            print("📭 No emails found for the specified date range")
         
         return emails
 
