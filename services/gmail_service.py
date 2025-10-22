@@ -125,7 +125,7 @@ class GmailService:
                     msg = future_to_msg[future]
                     print(f"Error fetching email {msg['id']}: {e}")
                     continue
-
+        
         return emails
 
     def _fetch_single_email_safe(self, msg_id):
@@ -134,17 +134,53 @@ class GmailService:
         Creates a new service instance for each thread.
         """
         try:
+            # Create a new service instance for thread safety
+            service = self._create_new_service()
             # Use optimized parameters to fetch only essential data
-            msg_data = self.service.users().messages().get(
-                userId="me",
+            msg_data = service.users().messages().get(
+                userId="me", 
                 id=msg_id,
                 format="metadata",
                 metadataHeaders=["From", "Subject"]
             ).execute()
-
             return self._process_email_data(msg_data)
         except Exception as e:
             print(f"Error fetching email {msg_id}: {e}")
+            return None
+
+    def _create_new_service(self):
+        """
+        The Gmail API client is not actually thread-safe for concurrent operations, even for read operations.
+        The SSL connection is getting corrupted when accessed by multiple threads simultaneously.
+        So we need to create a new service instance for each thread.
+
+        We did this because processing each email synchronously was taking too long.
+        This approach is the better option as gmail api does support multiple connections,
+        but not concurrent operations with the same connection.
+
+        Returns:
+            service: Gmail service instance
+        Raises:
+            CustomException: If error creating new service
+        """
+        try:
+            creds = None
+            if os.path.exists("token.json"):
+                creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+            
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+                    flow.redirect_uri = 'http://localhost:5001/'
+                    creds = flow.run_local_server(port=5001, access_type='offline', prompt='consent')
+                with open("token.json", "w") as token:
+                    token.write(creds.to_json())
+            
+            return build("gmail", "v1", credentials=creds)
+        except Exception as e:
+            print(f"Error creating new service: {e}")
             return None
 
     def _process_email_data(self, msg_data):
