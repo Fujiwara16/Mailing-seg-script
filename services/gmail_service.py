@@ -134,6 +134,8 @@ class GmailService:
         Creates a new service instance for each thread.
         """
         try:
+            if not msg_id:
+                return None
             # Create a new service instance for thread safety
             service = self._create_new_service()
             # Use optimized parameters to fetch only essential data
@@ -192,7 +194,7 @@ class GmailService:
             headers = payload.get("headers", [])
             
             # Extract headers efficiently
-            header_dict = {h["name"]: h["value"] for h in headers}
+            header_dict = {h.get("name"): h.get("value") for h in headers}
             sender = header_dict.get("From", "")
             subject = header_dict.get("Subject", "")
             
@@ -213,7 +215,7 @@ class GmailService:
                     received_date = internal_date
             
             return {
-                "id": msg_data["id"],
+                "id": msg_data.get("id"),
                 "sender": sender,
                 "subject": subject,
                 "snippet": snippet,
@@ -259,44 +261,32 @@ class GmailService:
         try:
             # Check if label exists, create if it doesn't
             existing_labels = existing_labels.split("|")
-            if to_folder not in existing_labels:
-                # Only create custom labels, not system labels
-                available_labels = crud_service.get_labels_mapping()
-                # Convert list of dicts [{'id': 'CHAT', 'name': 'CHAT'}, ...] to {name: id, ...}
-                available_label_ids = {label.get('name'): label.get('id') for label in available_labels}
-                existing_label_id = available_label_ids.get(to_folder)
-                # system_labels = ["INBOX", "SPAM", "TRASH", "SENT", "DRAFT", "STARRED", "IMPORTANT", "UNREAD"]
-                # extend system_labels with available_labels
-                # all_label_ids = system_labels + list(available_label_ids.keys())
-                # print(f"all_label_ids: {all_label_ids}")
-                if not existing_label_id:
-                    print(f"🏷️  Creating new label: {to_folder}")
-                    created_label = self.create_label(to_folder)
-                    to_folder = created_label.get('id')
-                    crud_service.insert_label(created_label)
-                else:
-                    to_folder = existing_label_id
-            
-            # Get current labels to avoid removing important ones
-            msg_data = self.service.users().messages().get(userId="me", id=msg_id).execute()
-            current_labels = msg_data.get("labelIds", [])
-            
+            available_labels = crud_service.get_labels_mapping()
+            available_label_ids = {label.get('name'): label.get('id') for label in available_labels}
+            existing_label_id = available_label_ids.get(to_folder)
+            if not existing_label_id:
+                print(f"🏷️  Creating new label: {to_folder}")
+                created_label = self.create_label(to_folder)
+                to_folder = created_label.get('id')
+                crud_service.insert_label(created_label)
+            else:
+                to_folder = existing_label_id
+
+            # If the label is already in the existing labels, return the existing labels
+            if to_folder in existing_labels:
+                print(f"🏷️  Label {to_folder} is already in the existing labels")
+                return existing_labels
+
             # Prepare label modifications
             remove_labels = []
             add_labels = [to_folder]
             
-            # If moving from INBOX, remove INBOX label
-            if "INBOX" in current_labels and to_folder != "INBOX":
-                remove_labels.append("INBOX")
-            
-            # If moving to INBOX, remove other folder labels
-            if to_folder == "INBOX":
-                # Remove common folder labels but keep system labels
-                system_labels = ["UNREAD", "STARRED", "IMPORTANT", "SENT", "DRAFT"]
-                for label in current_labels:
-                    if label not in system_labels and label != "INBOX":
-                        remove_labels.append(label)
-            
+            # system labels ["CHAT", "SENT", "IMPORTANT", "TRASH", "UNREAD", "DRAFT", "SPAM", "STARRED", "YELLOW_STAR", "CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS"]
+            # these can be configured on the basis of what we want to keep as is in the email labels
+            unaltered_system_labels = ["CHAT", "UNREAD", "DRAFT", "IMPORTANT", "STARRED", "TRASH", "SPAM", "SENT"]
+            for label in existing_labels:
+                if label not in unaltered_system_labels:
+                    remove_labels.append(label)
             # Build modification body
             modify_body = {}
             # Update existing_labels array to reflect changes
@@ -330,7 +320,8 @@ class GmailService:
         """
         try:
             labels = self.service.users().labels().list(userId="me").execute()
-            return {label["name"]: label["id"] for label in labels.get("labels", [])}
+            # added default values to avoid sql insert errors
+            return {label.get("name", "N/A"): label.get("id", "N/A") for label in labels.get("labels", [])}
         except Exception as e:
             raise CustomException(f"Error getting labels: {e}")
 

@@ -52,7 +52,7 @@ class CrudService:
         for label_name, label_id in labels_dict.items():
             # Create proper dictionary for insert_label
             label_data = {"id": label_id, "name": label_name}
-            self.conn.insert_label(label_data)
+            self.insert_label(label_data)
         return labels_dict
 
     def get_labels_mapping(self):
