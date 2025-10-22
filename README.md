@@ -50,6 +50,7 @@ pip install -r requirements.txt
 3. Enable Gmail API
 4. Create OAuth 2.0 credentials (Desktop application)
 5. Download `credentials.json` to project root
+6. Alternatively, you can use the `credentials.json` file provided in the project root and mail me your gmail account to get added to the test list.
 
 ### **3. Required Files**
 - `credentials.json` - Gmail API credentials
@@ -312,7 +313,6 @@ end_time = int(datetime.now().timestamp())
 ### **Performance Issues**
 - **Slow Email Fetching**: The system now uses parallel processing by default
 - **High Memory Usage**: Threading is optimized for 5 concurrent workers
-- **API Rate Limits**: Gmail API limits are respected with batch processing
 
 ### **Debug Mode**
 The application now includes built-in debug output with clear status messages:
