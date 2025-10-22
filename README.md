@@ -66,11 +66,17 @@ pip install -r requirements.txt
 
 ### **2. First Run (OAuth Setup)**
 ```bash
+# For new users or fresh authentication
+python3 app.py --new-user
+
+# For existing users with valid token
 python3 app.py
 ```
 - First run will open browser for Gmail authentication
 - Grant permissions to access your Gmail
 - `token.json` will be created automatically
+- Use `--new-user` flag to force fresh authentication
+- The system provides clear visual feedback and pauses for better user experience
 
 ### **3. Configure Rules**
 Edit `rules.json` to define your email processing rules:
@@ -97,8 +103,21 @@ Edit `rules.json` to define your email processing rules:
 
 ### **4. Run Email Processing**
 ```bash
+# Normal run (uses existing authentication)
 python3 app.py
+
+# Force fresh authentication (deletes token.json)
+python3 app.py --new-user
+
+# Show help and available options
+python3 app.py --help
 ```
+
+### **User Experience Features**
+- **Visual Feedback**: Clear status messages with emojis and progress indicators
+- **Pause for Readability**: Brief pauses to allow users to read important messages
+- **Clean Output**: Well-formatted console output with separators
+- **Error Handling**: Graceful error messages with helpful suggestions
 
 ## 📊 **RULES CONFIGURATION**
 
@@ -232,11 +251,12 @@ end_time = int(datetime.now().timestamp())
 ## 🛠️ **TROUBLESHOOTING**
 
 ### **Common Issues**
-1. **OAuth Error**: Delete `token.json` and re-run for fresh authentication
+1. **OAuth Error**: Use `python3 app.py --new-user` to force fresh authentication
 2. **Permission Denied**: Ensure Gmail API is enabled in Google Cloud Console
 3. **Rule Errors**: Check `rules.json` syntax with validation
 4. **Database Errors**: Delete `emails.db` to reset database
 5. **Memory Errors**: If you see "double free" errors, the threading optimization may need adjustment
+6. **Token Issues**: Use `--new-user` flag to delete and regenerate `token.json`
 
 ### **Performance Issues**
 - **Slow Email Fetching**: The system now uses parallel processing by default
@@ -244,13 +264,28 @@ end_time = int(datetime.now().timestamp())
 - **API Rate Limits**: Gmail API limits are respected with batch processing
 
 ### **Debug Mode**
-Add print statements in `app.py` to see processing steps:
+The application now includes built-in debug output with clear status messages:
 
-```python
-print("📧 Fetching emails...")
-print("🔍 Applying rules...")
-print("✅ Processing complete!")
+```bash
+🚀 Starting HappyFox Email Management System...
+🗑️  Deleted existing token.json for fresh authentication
+🔐 You will be prompted to re-authenticate with Gmail
+
+-------------------------------------------------- 
+
+🏷️  Updating labels mapping...
+📧 Fetching emails from Gmail...
+💾 Storing 25 emails in database...
+✅ Successfully stored 25 emails
+🔍 Applying rules to emails...
+✅ Email processing complete!
 ```
+
+### **Enhanced User Experience**
+- **Status Indicators**: Clear emoji-based status messages
+- **Progress Feedback**: Real-time updates on processing steps
+- **Visual Separators**: Clean formatting with separators for important sections
+- **Timed Pauses**: Brief pauses to ensure users can read important messages
 
 ## 📈 **PERFORMANCE**
 
@@ -283,7 +318,18 @@ print("✅ Processing complete!")
 2. **Monitor Results**: Check Gmail for processed emails
 3. **Add More Rules**: Create additional rule groups
 4. **Schedule Runs**: Set up cron jobs for automatic processing
+5. **Use New User Flag**: Run `python3 app.py --new-user` for fresh authentication when needed
 
----
+## 🎨 **USER EXPERIENCE IMPROVEMENTS**
 
-**Ready to automate your email management!** 🚀
+### **Enhanced Console Output**
+- **Emoji Status Indicators**: Clear visual feedback for each step
+- **Progress Messages**: Real-time updates on processing status
+- **Visual Separators**: Clean formatting with `---` separators
+- **Timed Pauses**: 2-second pause after important messages for readability
+
+### **Command-Line Interface**
+- **Help System**: `python3 app.py --help` for usage information
+- **New User Support**: `--new-user` flag for easy setup
+- **Error Messages**: Clear, actionable error messages
+- **Status Feedback**: Detailed progress reporting
