@@ -21,7 +21,7 @@
     ],
     "actions": {
       "move_message": "happyfox_assignment",
-      "mark_as_read": true
+      "mark_as_unread": true
     }
   }
 ]

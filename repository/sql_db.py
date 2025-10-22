@@ -34,10 +34,6 @@ class SqlDb:
         if self.conn:
             self.conn.commit()
 
-    def rollback(self):
-        """Rollback database transactions."""
-        if self.conn:
-            self.conn.rollback()
 
     def create_indexes(self):
         """Create database indexes for better query performance."""

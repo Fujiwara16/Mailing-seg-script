@@ -44,14 +44,6 @@ class GmailService:
         except Exception as e:
             raise CustomException(f"Error getting Gmail service: {e}")
 
-    def close(self):
-        """Close any open connections"""
-        try:
-            if hasattr(self, 'service') and self.service:
-                # Gmail service doesn't need explicit closing, but we can clean up
-                pass
-        except Exception as e:
-            print(f"Warning: Error during cleanup: {e}")
 
     def fetch_emails(self, start_time=None, end_time=None, max_results=1000):
         """

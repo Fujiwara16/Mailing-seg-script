@@ -347,7 +347,6 @@ The application now includes built-in debug output with clear status messages:
 - **Parallel Processing**: 5 concurrent threads for faster API calls
 - **Database Operations**: Batch inserts (90%+ faster than individual operations)
 - **API Efficiency**: Metadata-only requests (50-70% less data transfer)
-- **Rule Processing**: ~1000 emails per second
 - **Memory Usage**: Thread-safe with proper cleanup
 
 ### **Performance Improvements**

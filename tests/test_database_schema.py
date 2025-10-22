@@ -64,7 +64,6 @@ class TestDatabaseSchema(unittest.TestCase):
         # Expected columns: id, sender, subject, snippet, received, is_read, labels
         expected_columns = ['id', 'sender', 'subject', 'snippet', 'received', 'is_read', 'labels']
         actual_columns = [col[1] for col in columns]
-        
         for expected_col in expected_columns:
             self.assertIn(expected_col, actual_columns, f"Column {expected_col} should exist")
         

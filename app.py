@@ -89,8 +89,8 @@ if __name__ == "__main__":
         labels_mapping = crud_service.update_labels_mapping()
         
         # Fetch and store emails
-        print("📧 Fetching emails from Gmail...")
-        crud_service.get_emails_and_store_in_db()
+        # print("📧 Fetching emails from Gmail...")
+        # crud_service.get_emails_and_store_in_db()
         
         # Apply rules to emails
         print("🔍 Applying rules to emails...")
