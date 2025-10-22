@@ -111,10 +111,10 @@ class GmailService:
         with ThreadPoolExecutor(max_workers=5) as executor:
             # Submit all tasks
             future_to_msg = {
-                executor.submit(self._fetch_single_email_safe, msg["id"]): msg
+                executor.submit(self._fetch_single_email_safe, msg.get("id")): msg
                 for msg in messages
             }
-            
+
             # Collect results as they complete
             for future in as_completed(future_to_msg):
                 try:
@@ -125,7 +125,7 @@ class GmailService:
                     msg = future_to_msg[future]
                     print(f"Error fetching email {msg['id']}: {e}")
                     continue
-        
+
         return emails
 
     def _fetch_single_email_safe(self, msg_id):
@@ -134,44 +134,17 @@ class GmailService:
         Creates a new service instance for each thread.
         """
         try:
-            # Create a new service instance for thread safety
-            service = self._create_new_service()
-            
             # Use optimized parameters to fetch only essential data
-            msg_data = service.users().messages().get(
-                userId="me", 
+            msg_data = self.service.users().messages().get(
+                userId="me",
                 id=msg_id,
                 format="metadata",
                 metadataHeaders=["From", "Subject"]
             ).execute()
-            
+
             return self._process_email_data(msg_data)
         except Exception as e:
             print(f"Error fetching email {msg_id}: {e}")
-            return None
-
-    def _create_new_service(self):
-        """
-        Create a new Gmail service instance for thread safety.
-        """
-        try:
-            creds = None
-            if os.path.exists("token.json"):
-                creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-            
-            if not creds or not creds.valid:
-                if creds and creds.expired and creds.refresh_token:
-                    creds.refresh(Request())
-                else:
-                    flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-                    flow.redirect_uri = 'http://localhost:5001/'
-                    creds = flow.run_local_server(port=5001, access_type='offline', prompt='consent')
-                with open("token.json", "w") as token:
-                    token.write(creds.to_json())
-            
-            return build("gmail", "v1", credentials=creds)
-        except Exception as e:
-            print(f"Error creating new service: {e}")
             return None
 
     def _process_email_data(self, msg_data):
