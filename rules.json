@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Rule 1",
+    "predicate": "all",
+    "conditions": [
+      {
+        "field": "from",
+        "predicate": "contains",
+        "value": "trakstar.com"
+      },
+      {
+        "field": "subject",
+        "predicate": "contains",
+        "value": "assignment"
+      },
+      {
+        "field": "received",
+        "predicate": "less_than_days",
+        "value": "2"
+      }
+    ],
+    "actions": {
+      "move_message": "testing_rule_1",
+      "mark_as_read": true
+    }
+  }
+]
