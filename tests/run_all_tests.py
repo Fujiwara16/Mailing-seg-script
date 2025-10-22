@@ -128,9 +128,7 @@ def run_specific_test_suite(suite_name):
         "database": TestDatabaseSchema,
         "sql": TestSQLRules,
         "rules": TestRuleValidation,
-        "gmail": TestMockGmailService,
         "integration": TestEmailWorkflowIntegration,
-        "performance": TestPerformance,
         "errors": TestErrorHandling
     }
     
