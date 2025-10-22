@@ -17,13 +17,14 @@ class SqlDb:
                     labels TEXT DEFAULT 'INBOX'
                 )
             """)
-            self.c.execute("DROP TABLE IF EXISTS labels")
             self.c.execute("""
-                CREATE TABLE labels (
+                CREATE TABLE IF NOT EXISTS labels (
                     id TEXT PRIMARY KEY,
                     name TEXT
                 );
             """)
+            # fully empty the labels table
+            self.c.execute("DELETE FROM labels")
             self.conn.commit()
         except sqlite3.Error as e:
             raise CustomException(f"Database initialization error: {e}")
@@ -43,6 +44,8 @@ class SqlDb:
             # Convert to list of dictionaries
             labels = []
             for row in rows:
+                if len(row) != 2:
+                    raise CustomException(f"Invalid label row: {row}")
                 labels.append({"id": row[0], "name": row[1]})
             return labels
         except sqlite3.Error as e:
@@ -54,7 +57,7 @@ class SqlDb:
             self.c.execute("""
                 INSERT OR IGNORE INTO emails (id, sender, subject, snippet, received, labels)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (email["id"], email["sender"], email["subject"], email["snippet"], email["received"], email["labels"]))
+            """, (email.get("id"), email.get("sender"), email.get("subject"), email.get("snippet"), email.get("received"), email.get("labels")))
             self.conn.commit()
             return email
         except sqlite3.Error as e:
@@ -72,12 +75,12 @@ class SqlDb:
             email_data = []
             for email in emails:
                 email_data.append((
-                    email["id"], 
-                    email["sender"], 
-                    email["subject"], 
-                    email["snippet"], 
-                    email["received"], 
-                    email["labels"]
+                    email.get("id"),
+                    email.get("sender"),
+                    email.get("subject"),
+                    email.get("snippet"),
+                    email.get("received"),
+                    email.get("labels")
                 ))
             
             # Use executemany for batch insert
