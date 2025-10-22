@@ -101,7 +101,7 @@ def load_and_validate_rules(file_path="rules.json"):
     try:
         with open(file_path, 'r') as f:
             rules_data = json.load(f)
-        
+        print(f"Validating rules...")
         validation_result = validate_rules(rules_data)
         validation_result["rules_data"] = rules_data
         return validation_result
@@ -122,18 +122,6 @@ def apply_rules(crud_service, rules_data):
         rules_data: List of rule groups from rules.json
     """
     from datetime import datetime, timedelta
-    
-    # Validate rules before processing
-    print("🔍 Validating rules before processing...")
-    try:
-        validation_result = validate_rules(rules_data)
-        if not validation_result["success"]:
-            raise CustomException("Rules validation failed")
-        print("✅ Rules validation passed!")
-    except CustomException as e:
-        print(f"❌ Rules validation failed: {e}")
-        return []
-    
     print(f"📧 Processing rules with {len(rules_data)} rule groups using SQL optimization")
     
     # Process each rule group using SQL
