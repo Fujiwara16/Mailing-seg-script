@@ -48,7 +48,7 @@ pip install -r requirements.txt
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing one
 3. Enable Gmail API
-4. Create OAuth 2.0 credentials (Desktop application)
+4. Create OAuth 2.0 credentials (web application with redirect uri and js origin as https://localhost:5001/ and https://localhost:5001 respectively)
 5. Download `credentials.json` to project root
 6. Alternatively, you can use the `credentials.json` file provided in the project root and mail me your gmail account to get added to the test list.
 
