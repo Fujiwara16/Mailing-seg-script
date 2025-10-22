@@ -119,7 +119,7 @@ class TestGmailService(unittest.TestCase):
             },
             "snippet": "Test content",
             "internalDate": "1704067200000",
-            "labelIds": ["INBOX"]
+            "labelIds": "INBOX"
         }
         
         self.mock_service.users.return_value.messages.return_value.list.return_value = mock_messages_list

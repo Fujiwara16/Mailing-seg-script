@@ -73,7 +73,7 @@ class MockGmailService:
     def move_message(self, crud_service, msg_id, to_folder, existing_labels):
         """Mock move message."""
         print(f"Mock: Moved {msg_id} to {to_folder}")
-        return existing_labels + [to_folder]
+        return existing_labels + to_folder
     
     def get_available_labels(self):
         """Mock get available labels."""
