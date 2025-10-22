@@ -295,7 +295,7 @@ class GmailService:
                     if label in existing_labels:
                         existing_labels.remove(label)
                 modify_body["removeLabelIds"] = remove_labels
-            
+
             if add_labels:
                 for label in add_labels:
                     if label not in existing_labels:
@@ -343,7 +343,6 @@ class GmailService:
                 "messageListVisibility": "show"
             }
             created_label = self.service.users().labels().create(userId="me", body=label_object).execute()
-            print(f"🏷️  Created label: {label_name}")
             return created_label
         except Exception as e:
             raise CustomException(f"Error creating label {label_name}: {e}")
