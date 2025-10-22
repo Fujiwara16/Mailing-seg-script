@@ -49,6 +49,7 @@ class SqlDb:
             raise CustomException(f"Error fetching labels: {e}")
 
     def insert_email(self, email):
+        # Deprecated, using batch insert_emails instead
         try:
             self.c.execute("""
                 INSERT OR IGNORE INTO emails (id, sender, subject, snippet, received, labels)
@@ -96,13 +97,6 @@ class SqlDb:
             return self.c.fetchall()
         except sqlite3.Error as e:
             raise CustomException(f"Error fetching emails: {e}")
-
-    def get_unread_emails(self):
-        try:
-            self.c.execute("SELECT * FROM emails WHERE is_read = 0")
-            return self.c.fetchall()
-        except sqlite3.Error as e:
-            raise CustomException(f"Error fetching unread emails: {e}")
 
     def mark_as_read(self, message_id):
         try:

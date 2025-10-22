@@ -111,7 +111,7 @@ class GmailService:
         with ThreadPoolExecutor(max_workers=5) as executor:
             # Submit all tasks
             future_to_msg = {
-                executor.submit(self._fetch_single_email_safe, msg["id"]): msg 
+                executor.submit(self._fetch_single_email_safe, msg["id"]): msg
                 for msg in messages
             }
             
