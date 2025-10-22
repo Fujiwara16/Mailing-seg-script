@@ -76,6 +76,11 @@ if __name__ == "__main__":
 
         # Initialize database and services
         db = SqlDb("emails.db")
+        
+        # Create database indexes for optimal performance
+        print("🔧 Creating database indexes for optimal performance...")
+        db.create_indexes()
+        
         gmail_service = GmailService()
         crud_service = CrudService(gmail_service, db)
         

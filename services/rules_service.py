@@ -115,7 +115,7 @@ def load_and_validate_rules(file_path="rules.json"):
 
 def apply_rules(crud_service, rules_data):
     """
-    Apply rules to emails from the database.
+    Apply rules to emails using SQL-based processing for optimal performance.
     
     Args:
         crud_service: Crud service object
@@ -134,175 +134,41 @@ def apply_rules(crud_service, rules_data):
         print(f"❌ Rules validation failed: {e}")
         return []
     
-    emails = crud_service.fetch_emails_from_db()
-    print(f"📧 Processing {len(emails)} emails with {len(rules_data)} rule groups")
+    print(f"📧 Processing rules with {len(rules_data)} rule groups using SQL optimization")
     
-    for email in emails:
-        msg_id = email[0]  # id
-        sender = email[1]  # sender
-        subject = email[2]  # subject
-        snippet = email[3]  # snippet
-        received = email[4]  # received
-        is_read = email[5]  # is_read
-        labels = email[6]  # labels
+    # Process each rule group using SQL
+    for rule_group in rules_data:
+        rule_group_name = rule_group.get("name", "Unnamed Rule")
+        predicate = rule_group.get("predicate", "any")
+        conditions = rule_group.get("conditions", [])
+        actions = rule_group.get("actions", {})
         
-        print(f"\n📧 Processing: {subject[:50]}...")
+        print(f"\n🔍 Processing rule group: {rule_group_name} ({predicate})")
         
-        # Process each rule group
-        for rule_group in rules_data:
-            rule_group_name = rule_group.get("name", "Unnamed Rule")
-            predicate = rule_group.get("predicate", "any")
-            conditions = rule_group.get("conditions", [])
-            actions = rule_group.get("actions", {})
+        try:
+            # Use SQL to get matching emails directly
+            matching_emails = crud_service.email_repo.get_emails_by_rule_conditions(conditions, predicate)
             
-            print(f"🔍 Checking rule group: {rule_group_name} ({predicate})")
-            
-            # Check if any/all conditions match
-            matches = []
-            for condition in conditions:
-                match = evaluate_condition(condition, sender, subject, snippet, received)
-                matches.append(match)
-            if match:
-                    print(f"✅ Condition matched: {condition.get('field')} {condition.get('predicate')} '{condition.get('value')}'")
-            
-            # Determine if rule group matches based on predicate
-            rule_group_matches = False
-            if predicate == "any":
-                rule_group_matches = any(matches)
-            elif predicate == "all":
-                rule_group_matches = all(matches)
-            
-            # Execute actions if rule group matches
-            if rule_group_matches:
-                print(f"🎯 Rule group '{rule_group_name}' matched! Executing actions...")
-                execute_actions_new(crud_service, msg_id, subject, actions, labels)
+            if matching_emails:
+                print(f"✅ Found {len(matching_emails)} emails matching rule group '{rule_group_name}'")
+                
+                # Execute actions on matching emails
+                for email in matching_emails:
+                    msg_id = email[0]  # id
+                    subject = email[2]  # subject
+                    labels = email[6]  # labels
+                    
+                    print(f"📧 Processing: {subject[:50]}...")
+                    execute_actions(crud_service, msg_id, subject, actions, labels)
             else:
-                print(f"❌ Rule group '{rule_group_name}' did not match")
+                print(f"❌ No emails matched rule group '{rule_group_name}'")
+                
+        except Exception as e:
+            print(f"❌ Error processing rule group '{rule_group_name}': {e}")
+            continue
 
-def evaluate_condition(condition, sender, subject, snippet, received):
-    """
-    Evaluate a single condition against email data.
-    
-    Args:
-        condition: Condition dictionary
-        sender: Email sender
-        subject: Email subject
-        snippet: Email snippet
-        received: Email received date
-        
-    Returns:
-        bool: True if condition matches
-    """
-    field = condition.get("field")
-    predicate = condition.get("predicate")
-    value = condition.get("value", "")
-    
-    # Get field value
-    if field == "from":
-        field_val = sender.lower()
-    elif field == "subject":
-        field_val = subject.lower()
-    elif field == "message":
-        field_val = snippet.lower()
-    elif field == "received":
-        field_val = received
-    else:
-        return False
-    
-    # Handle date field differently
-    if field == "received":
-        return evaluate_date_condition(predicate, value, field_val)
-    else:
-        return evaluate_string_condition(predicate, value, field_val)
 
-def evaluate_rule(rule, sender, subject, snippet, received):
-    """
-    Evaluate a single rule against email data.
-    
-    Args:
-        rule: Rule dictionary
-        sender: Email sender
-        subject: Email subject
-        snippet: Email snippet
-        received: Email received date
-        
-    Returns:
-        bool: True if rule matches
-    """
-    field = rule.get("field")
-    predicate = rule.get("predicate")
-    value = rule.get("value", "")
-    
-    # Get field value
-    if field == "from":
-        field_val = sender.lower()
-    elif field == "subject":
-        field_val = subject.lower()
-    elif field == "message":
-        field_val = snippet.lower()
-    elif field == "received":
-        field_val = received
-    else:
-        return False
-    
-    # Handle date field differently
-    if field == "received":
-        return evaluate_date_rule(predicate, value, field_val)
-    else:
-        return evaluate_string_rule(predicate, value, field_val)
-
-def evaluate_string_rule(predicate, value, field_val):
-    """Evaluate string-based rules."""
-    value_lower = value.lower()
-    
-    if predicate == "contains":
-        return value_lower in field_val
-    elif predicate == "does_not_contain":
-        return value_lower not in field_val
-    elif predicate == "equals":
-        return field_val == value_lower
-    elif predicate == "does_not_equal":
-        return field_val != value_lower
-    else:
-        return False
-
-def evaluate_date_rule(predicate, value, field_val):
-    """Evaluate date-based rules."""
-    try:
-        from datetime import datetime, timedelta
-        
-        # Parse the value (should be number of days)
-        days = int(value)
-        
-        # Parse the received date (assuming it's in ISO format or timestamp)
-        if isinstance(field_val, str):
-            try:
-                # Try parsing as ISO format
-                received_date = datetime.fromisoformat(field_val.replace('Z', '+00:00'))
-            except:
-                # Try parsing as timestamp
-                received_date = datetime.fromtimestamp(int(field_val) / 1000)
-        else:
-            received_date = datetime.fromtimestamp(int(field_val) / 1000)
-        
-        now = datetime.now()
-        time_diff = now - received_date
-        
-        if predicate == "less_than_days":
-            return time_diff.days > days
-        elif predicate == "greater_than_days":
-            return time_diff.days < days
-        elif predicate == "less_than_months":
-            return time_diff.days > (days * 30)
-        elif predicate == "greater_than_months":
-            return time_diff.days < (days * 30)
-        else:
-            return False
-    except Exception as e:
-        print(f"⚠️  Error evaluating date rule: {e}")
-        return False
-        
-def execute_actions_new(crud_service, msg_id, subject, actions, existing_labels):
+def execute_actions(crud_service, msg_id, subject, actions, existing_labels):
     """
     Execute actions for a matched rule group using the new structure.
     

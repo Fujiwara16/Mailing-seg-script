@@ -29,102 +29,33 @@ class SqlDb:
         except sqlite3.Error as e:
             raise CustomException(f"Database initialization error: {e}")
 
-    def insert_label(self, label):
-        try:
-            self.c.execute("INSERT OR IGNORE INTO labels (id, name) VALUES (?, ?)", (label["id"], label["name"]))
+    def commit(self):
+        """Commit database transactions."""
+        if self.conn:
             self.conn.commit()
-            return label
-        except sqlite3.Error as e:
-            raise CustomException(f"Error inserting label: {e}")
 
-    def get_all_labels(self):
-        try:
-            self.c.execute("SELECT * FROM labels")
-            rows = self.c.fetchall()
-            # Convert to list of dictionaries
-            labels = []
-            for row in rows:
-                if len(row) != 2:
-                    raise CustomException(f"Invalid label row: {row}")
-                labels.append({"id": row[0], "name": row[1]})
-            return labels
-        except sqlite3.Error as e:
-            raise CustomException(f"Error fetching labels: {e}")
+    def rollback(self):
+        """Rollback database transactions."""
+        if self.conn:
+            self.conn.rollback()
 
-    def insert_email(self, email):
-        # Deprecated, using batch insert_emails instead
+    def create_indexes(self):
+        """Create database indexes for better query performance."""
         try:
-            self.c.execute("""
-                INSERT OR IGNORE INTO emails (id, sender, subject, snippet, received, labels)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (email.get("id"), email.get("sender"), email.get("subject"), email.get("snippet"), email.get("received"), email.get("labels")))
-            self.conn.commit()
-            return email
-        except sqlite3.Error as e:
-            raise CustomException(f"Error inserting email: {e}")
-
-    def batch_insert_emails(self, emails):
-        """
-        Batch insert multiple emails for better performance.
-        """
-        try:
-            if not emails:
-                return []
-            
-            # Prepare data for batch insert
-            email_data = []
-            for email in emails:
-                email_data.append((
-                    email.get("id"),
-                    email.get("sender"),
-                    email.get("subject"),
-                    email.get("snippet"),
-                    email.get("received"),
-                    email.get("labels")
-                ))
-            
-            # Use executemany for batch insert
-            self.c.executemany("""
-                INSERT OR IGNORE INTO emails (id, sender, subject, snippet, received, labels)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, email_data)
+            # Create indexes on frequently queried fields for rule processing
+            self.c.execute("CREATE INDEX IF NOT EXISTS idx_emails_sender ON emails(sender)")
+            self.c.execute("CREATE INDEX IF NOT EXISTS idx_emails_subject ON emails(subject)")
+            self.c.execute("CREATE INDEX IF NOT EXISTS idx_emails_received ON emails(received)")
             
             self.conn.commit()
-            return emails
+            print("✅ Database indexes created successfully")
         except sqlite3.Error as e:
-            raise CustomException(f"Error batch inserting emails: {e}")
+            raise CustomException(f"Error creating indexes: {e}")
 
-    def get_all_emails(self):
-        try:
-            self.c.execute("SELECT * FROM emails")
-            return self.c.fetchall()
-        except sqlite3.Error as e:
-            raise CustomException(f"Error fetching emails: {e}")
+    def __del__(self):
+        self.close()
 
-    def mark_as_read(self, message_id):
-        try:
-            self.c.execute("UPDATE emails SET is_read = 1 WHERE id = ?", (message_id,))
-            self.conn.commit()
-        except sqlite3.Error as e:
-            raise CustomException(f"Error marking email as read: {e}")
-
-    def move_message(self, message_id, labels):
-        try:
-            self.c.execute("UPDATE emails SET labels = ? WHERE id = ?", (labels, message_id))
-            self.conn.commit()
-        except sqlite3.Error as e:
-            raise CustomException(f"Error moving email to {labels}: {e}")
-
-    def mark_as_unread(self, message_id):
-        try:
-            self.c.execute("UPDATE emails SET is_read = 0 WHERE id = ?", (message_id,))
-            self.conn.commit()
-        except sqlite3.Error as e:
-            raise CustomException(f"Error marking email as unread: {e}")
 
     def close(self):
         if self.conn:
             self.conn.close()
-
-    def __del__(self):
-        self.close()
