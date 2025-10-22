@@ -1,0 +1,5 @@
+venv/
+venv/*
+__pycache__/
+emails.db
+token.json
